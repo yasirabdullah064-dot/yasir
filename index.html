@@ -1,0 +1,253 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="calculator">
+        <div class="top">
+            <p style="color: aliceblue;font-size: 20px;">CALCULATOR</p>
+        </div>
+
+        <div class="display">
+            <div id="previous"></div>
+            <div id="current">0</div>
+        </div>
+
+        <div class="buttons">
+            <button class="special" data-action="clear">AC</button>
+            <button class="special" data-action="sign">±</button>
+            <button class="special" data-action="percent">%</button>
+            <button class="operator" data-operator="/">÷</button>
+
+            <button data-number="7">7</button>
+            <button data-number="8">8</button>
+            <button data-number="9">9</button>
+            <button class="operator" data-operator="*">×</button>
+
+            <button data-number="4">4</button>
+            <button data-number="5">5</button>
+            <button data-number="6">6</button>
+            <button class="operator" data-operator="-">−</button>
+
+            <button data-number="1">1</button>
+            <button data-number="2">2</button>
+            <button data-number="3">3</button>
+            <button class="operator" data-operator="+">+</button>
+
+            <button class="zero" data-number="0">0</button>
+            <button data-action="decimal">.</button>
+            <button class="equals" data-action="equals">=</button>
+        </div>
+
+        <p class="footer">MADE BY M.YASIR</p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+<script>
+const currentDisplay = document.getElementById("current");
+const previousDisplay = document.getElementById("previous");
+const buttons = document.querySelector(".buttons");
+
+let current = "0";
+let previous = null;
+let operator = null;
+let waitingForNumber = false;
+let finished = false;
+
+function updateDisplay() {
+    currentDisplay.textContent = current;
+
+    if (previous !== null && operator !== null) {
+        const symbols = { "/": "÷", "*": "×", "-": "−", "+": "+" };
+        previousDisplay.textContent =
+            `${previous} ${symbols[operator]}`;
+    } else {
+        previousDisplay.textContent = "";
+    }
+}
+
+function inputNumber(number) {
+    if (waitingForNumber || finished) {
+        current = number;
+        waitingForNumber = false;
+        finished = false;
+    } else if (current === "0") {
+        current = number;
+    } else if (current.replace("-", "").replace(".", "").length < 14) {
+        current += number;
+    }
+
+    updateDisplay();
+}
+
+function inputDecimal() {
+    if (waitingForNumber || finished) {
+        current = "0.";
+        waitingForNumber = false;
+        finished = false;
+    } else if (!current.includes(".")) {
+        current += ".";
+    }
+
+    updateDisplay();
+}
+
+function calculate(a, b, op) {
+    switch (op) {
+        case "+": return a + b;
+        case "-": return a - b;
+        case "*": return a * b;
+        case "/": return b === 0 ? null : a / b;
+        default: return b;
+    }
+}
+
+function formatResult(number) {
+    if (!Number.isFinite(number)) return "Error";
+
+    const rounded = Number(number.toPrecision(12));
+    return String(rounded);
+}
+
+function chooseOperator(nextOperator) {
+    const value = Number(current);
+
+    if (operator && !waitingForNumber) {
+        const result = calculate(previous, value, operator);
+
+        if (result === null) {
+            current = "Cannot divide by zero";
+            previous = null;
+            operator = null;
+            waitingForNumber = true;
+            finished = true;
+            updateDisplay();
+            return;
+        }
+
+        current = formatResult(result);
+    }
+
+    previous = Number(current);
+    operator = nextOperator;
+    waitingForNumber = true;
+    finished = false;
+    updateDisplay();
+}
+
+function equals() {
+    if (operator === null || previous === null) return;
+
+    const result = calculate(previous, Number(current), operator);
+
+    if (result === null) {
+        current = "Cannot divide by zero";
+    } else {
+        current = formatResult(result);
+    }
+
+    previous = null;
+    operator = null;
+    waitingForNumber = true;
+    finished = true;
+    updateDisplay();
+}
+
+function clearCalculator() {
+    current = "0";
+    previous = null;
+    operator = null;
+    waitingForNumber = false;
+    finished = false;
+    updateDisplay();
+}
+
+function toggleSign() {
+    if (current === "0" || current === "Error" ||
+        current === "Cannot divide by zero") return;
+
+    current = current.startsWith("-")
+        ? current.slice(1)
+        : "-" + current;
+
+    finished = false;
+    updateDisplay();
+}
+
+function percent() {
+    const value = Number(current) / 100;
+    current = formatResult(value);
+    finished = false;
+    updateDisplay();
+}
+
+buttons.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+
+    if (button.dataset.number !== undefined) {
+        inputNumber(button.dataset.number);
+        return;
+    }
+
+    if (button.dataset.operator) {
+        chooseOperator(button.dataset.operator);
+        return;
+    }
+
+    switch (button.dataset.action) {
+        case "clear":
+            clearCalculator();
+            break;
+        case "decimal":
+            inputDecimal();
+            break;
+        case "equals":
+            equals();
+            break;
+        case "sign":
+            toggleSign();
+            break;
+        case "percent":
+            percent();
+            break;
+    }
+});
+
+// Keyboard support
+document.addEventListener("keydown", (event) => {
+    if (/^[0-9]$/.test(event.key)) {
+        inputNumber(event.key);
+    } else if (event.key === ".") {
+        inputDecimal();
+    } else if (["+", "-", "*", "/"].includes(event.key)) {
+        chooseOperator(event.key);
+    } else if (event.key === "Enter" || event.key === "=") {
+        event.preventDefault();
+        equals();
+    } else if (event.key === "Escape") {
+        clearCalculator();
+    } else if (event.key === "Backspace") {
+        if (!waitingForNumber && !finished) {
+            current = current.length > 1
+                ? current.slice(0, -1)
+                : "0";
+
+            if (current === "-") current = "0";
+            updateDisplay();
+        }
+    } else if (event.key === "%") {
+        percent();
+    }
+});
+
+updateDisplay();
+</script>
